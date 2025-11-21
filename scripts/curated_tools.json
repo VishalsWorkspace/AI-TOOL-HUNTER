@@ -1,0 +1,32 @@
+[
+  {
+    "title": "Gemini 3.0 Pro",
+    "description": "A deep learning model that can replicate and modify existing websites, including OS clones and SVG sites, using a canvas-based interface.",
+    "tags": [
+      "Python",
+      "Canvas"
+    ],
+    "utility_score": 9,
+    "link": "https://www.example.com/gemini-3-0-pro"
+  },
+  {
+    "title": "OpenAI's ChatGPT Fix",
+    "description": "A patch to the ChatGPT model that reduces the overuse of the 'm-dash' punctuation mark, improving the model's ability to generate human-like text.",
+    "tags": [
+      "NLP",
+      "Chatbots"
+    ],
+    "utility_score": 8,
+    "link": "https://www.example.com/chatgpt-fix"
+  },
+  {
+    "title": "Thermodynamic Computing",
+    "description": "A proposed approach to computing that uses thermal noise to achieve potentially significant efficiency gains, potentially leading to more powerful AI systems.",
+    "tags": [
+      "Thermodynamics",
+      "Computing"
+    ],
+    "utility_score": 7,
+    "link": "https://www.example.com/thermodynamic-computing"
+  }
+]
