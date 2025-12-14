@@ -3,51 +3,56 @@ import Groq from 'groq-sdk';
 import { tavily } from '@tavily/core';
 import { createClient } from '@supabase/supabase-js';
 
+// Initialize with your keys
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const tvly = tavily({ apiKey: process.env.TAVILY_API_KEY });
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_KEY! // SERVICE ROLE KEY needed for writing!
 );
 
 export async function POST(request: Request) {
   try {
     const { query } = await request.json();
+    console.log(`🚀 Launching Deep Search for: "${query}"`);
 
-    // 1. TAVILY SEARCH (Broader Search)
-    // We explicitly ask for "Official Website" to help Tavily focus
-    const searchResult = await tvly.search(`${query} official landing page software ai tool`, {
-      searchDepth: "basic",
-      maxResults: 8, // Get more results so we can filter out the trash
+    // 1. TAVILY: Broad Spectrum Search
+    // We search for "Pricing" and "Features" explicitly to get rich data
+    const searchResult = await tvly.search(`best ${query} ai tool software pricing features official site`, {
+      searchDepth: "advanced", // Deep search for better results
+      maxResults: 7,
+      includeDomains: [], 
+      excludeDomains: ["linkedin.com", "instagram.com", "facebook.com"] // Anti-Social filter
     });
 
     const contextText = searchResult.results.map((res: any) => 
-      `URL: ${res.url}\nTITLE: ${res.title}\nCONTENT: ${res.content.slice(0, 200)}`
+      `SOURCE: ${res.url}\nTITLE: ${res.title}\nTEXT: ${res.content.slice(0, 300)}`
     ).join("\n\n");
 
-    // 2. AI ANALYSIS (The Strict Librarian)
+    // 2. LLAMA 3: The "VC Analyst" Logic
     const systemPrompt = `
-    You are an AI Tool Auditor. User is looking for: "${query}".
+    You are an elite Venture Capital Analyst evaluating AI tools.
+    User is hunting for: "${query}".
     
-    TASK:
-    1. Find the Top 3 REAL AI tools from the search results.
-    2. Extract TWO links for each tool:
-       - "link": MUST be the OFFICIAL HOMEPAGE (e.g., .com, .ai, .io). 
-         * CRITICAL: NEVER use Facebook, Instagram, Twitter, LinkedIn, Pinterest, or YouTube here.
-         * If you can't find the official site, leave "link" empty.
-       - "tutorial_link": A helpful blog post, review, or social media post about the tool.
+    ANALYZE the search results and extract the Top 3 HIGH-QUALITY tools.
     
-    3. Write a short, punchy description.
+    STRICT RULES:
+    1. IGNORE "Top 10" lists, blogs, or newsletters. Look for PRODUCT LANDING PAGES.
+    2. 'link' must be the OFFICIAL HOMEPAGE (e.g., .com, .ai, .io). NO SOCIAL MEDIA LINKS.
+    3. 'pricing' must be specific: "Free", "Freemium", "$10/mo", or "Paid".
+    4. 'pros' must be 3 short, punchy features (max 4 words each).
     
-    OUTPUT JSON ONLY:
+    OUTPUT JSON FORMAT ONLY (No markdown):
     [
       {
         "title": "Tool Name",
-        "description": "Short summary.",
-        "link": "https://official-site.com", 
-        "tutorial_link": "https://facebook.com/post-about-it",
-        "tags": ["${query}", "AI"],
-        "utility_score": 9
+        "description": "One sentence value prop.",
+        "link": "https://official-site.com",
+        "tutorial_link": "https://docs.official-site.com",
+        "tags": ["${query}", "Generative AI", "Productivity"],
+        "utility_score": 95,
+        "pricing": "Freemium",
+        "pros": ["Real-time Sync", "No-code Builder", "GPT-4 Native"]
       }
     ]
     `;
@@ -57,11 +62,13 @@ export async function POST(request: Request) {
         { role: "system", content: systemPrompt },
         { role: "user", content: contextText }
       ],
-      model: "llama-3.1-8b-instant",
-      temperature: 0,
+      model: "llama-3.3-70b-versatile", // Use the smartest model available
+      temperature: 0.1, // Low creativity, high accuracy
     });
 
     const aiContent = completion.choices[0]?.message?.content || "";
+    
+    // Robust JSON Extractor
     const startIndex = aiContent.indexOf('[');
     const endIndex = aiContent.lastIndexOf(']');
     
@@ -70,27 +77,32 @@ export async function POST(request: Request) {
       tools = JSON.parse(aiContent.substring(startIndex, endIndex + 1));
     }
 
-    // 3. SAVE TO DB (With Validation)
+    // 3. DATABASE: Upsert Logic (Prevent Duplicates)
+    const processedTools = [];
     if (tools.length > 0) {
       for (const tool of tools) {
-        // Double Check: If main link is social media, swap it or skip it
-        if (tool.link && (tool.link.includes("facebook.com") || tool.link.includes("twitter.com") || tool.link.includes("linkedin.com"))) {
-            // The AI failed the instructions. Move this bad link to tutorial_link if it's empty
-            if (!tool.tutorial_link) tool.tutorial_link = tool.link;
-            tool.link = ""; // Kill the bad main link
-        }
+        if (!tool.link.includes("example.com") && !tool.link.includes("google.com")) {
+            // Check if exists first to avoid duplicates
+            const { data: existing } = await supabase
+                .from('tools')
+                .select('id')
+                .eq('link', tool.link)
+                .single();
 
-        // Only save if we have a Title
-        if (tool.title) {
-            await supabase.from('tools').insert(tool);
+            if (!existing) {
+                const { data, error } = await supabase.from('tools').insert(tool).select();
+                if (data) processedTools.push(data[0]);
+            } else {
+                processedTools.push(tool); // It exists, just return it to UI
+            }
         }
       }
     }
 
-    return NextResponse.json({ success: true, tools });
+    return NextResponse.json({ success: true, tools: processedTools });
 
   } catch (error) {
-    console.error("Hunt Error:", error);
-    return NextResponse.json({ success: false, error: "Failed to hunt" }, { status: 500 });
+    console.error("Hunt Critical Failure:", error);
+    return NextResponse.json({ success: false, error: "AI Engine Overload" }, { status: 500 });
   }
 }
