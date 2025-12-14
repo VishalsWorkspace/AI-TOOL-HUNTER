@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, CheckCircle2, ArrowLeft, Bot } from "lucide-react";
+import { ExternalLink, CheckCircle2, ArrowLeft, Bot, Sparkles } from "lucide-react";
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown'; // Run: npm install react-markdown
 
