@@ -23,9 +23,9 @@ interface Tool {
   tutorial_link?: string;
   pricing?: string;
   pros?: string[];
-  slug?: string;      // For SEO Pages
-  image_url?: string; // For Banners
-  votes?: number;     // For Social Proof
+  slug?: string;      
+  image_url?: string; 
+  votes?: number;     
 }
 
 const CATEGORIES = ["All", "Coding", "Writing", "Design", "Video", "Business", "PDF", "Audio", "Research"];
@@ -46,7 +46,6 @@ const ToolCard = ({ tool, handleVote, hasVoted }: { tool: Tool, handleVote: any,
             />
         ) : (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-900 to-black">
-                {/* Fallback Icon based on category */}
                 <div className="text-zinc-700 group-hover:text-emerald-500/50 transition-colors">
                    {tool.tags.some(t => t.includes("Video")) ? <Video className="h-12 w-12" /> : <Bot className="h-12 w-12" />}
                 </div>
@@ -273,20 +272,28 @@ export default function ToolDashboard({ tools: initialTools }: { tools: Tool[] }
                     />
                 ))
             ) : !isHunting && (
-                // Empty State
-                <div className="col-span-full text-center py-32 border border-dashed border-zinc-800 rounded-3xl bg-zinc-900/20">
-                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-zinc-900 mb-6 border border-zinc-800 shadow-xl">
-                        <Sparkles className="h-10 w-10 text-emerald-500" />
+                // 4. THE "ACTIVE HUNTER" EMPTY STATE
+                <div className="col-span-full flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in duration-500">
+                    <div className="relative mb-6 group cursor-pointer" onClick={handleDeepHunt}>
+                        <div className="absolute -inset-4 bg-emerald-500/20 rounded-full blur-xl group-hover:bg-emerald-500/40 transition-all duration-500"></div>
+                        <div className="relative bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-2xl group-hover:scale-110 transition-transform duration-300">
+                            <Sparkles className="h-12 w-12 text-emerald-500 animate-pulse" />
+                        </div>
                     </div>
-                    <h2 className="text-2xl font-bold text-white mb-2">No tools found yet.</h2>
-                    <p className="text-zinc-500 mb-8 max-w-md mx-auto">
-                        Our database is pristine. Hit "Deep Search" to unleash the AI Agent on the live web.
+                    
+                    <h2 className="text-3xl font-bold text-white mb-3">
+                        No "{searchQuery}" tools in our vault.
+                    </h2>
+                    <p className="text-zinc-400 mb-8 max-w-md mx-auto text-lg">
+                        But they exist on the web. Activate the AI Agent to hunt them down for you.
                     </p>
+                    
                     <Button 
                         onClick={handleDeepHunt}
-                        className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-8 py-6 text-lg rounded-xl shadow-[0_0_30px_-5px_rgba(16,185,129,0.4)] transition-transform hover:scale-105"
+                        className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-10 py-7 text-xl rounded-2xl shadow-[0_0_40px_-10px_rgba(16,185,129,0.5)] transition-all hover:scale-105"
                     >
-                        Launch Deep Hunt
+                        <Zap className="mr-2 h-6 w-6 fill-black" />
+                        Launch Deep Search
                     </Button>
                 </div>
             )}

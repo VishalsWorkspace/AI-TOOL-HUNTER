@@ -25,15 +25,35 @@ tavily = TavilyClient(api_key=TAVILY_API_KEY)
 SEARCH_QUERIES = {
     "Coding": "top ai coding assistants 2025 review",
     "Video": "best ai video generators 2025 review",
-    # Add more...
+    "Design": "best ai graphic design tools 2025",
+    "Business": "ai tools for business productivity 2025",
 }
 
 def create_slug(title):
-    # Turns "Cursor AI Code Editor" into "cursor-ai-code-editor"
     slug = title.lower().strip()
     slug = re.sub(r'[^a-z0-9\s-]', '', slug)
     slug = re.sub(r'[\s-]+', '-', slug)
     return slug
+
+def get_og_image(url):
+    print(f"   🖼️ Fetching image for: {url}...")
+    try:
+        response = requests.get(url, timeout=5, headers={"User-Agent": "Mozilla/5.0"})
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        # Priority 1: Open Graph Image
+        og_image = soup.find("meta", property="og:image")
+        if og_image and og_image.get("content"):
+            return og_image["content"]
+            
+        # Priority 2: Twitter Image
+        twitter_image = soup.find("meta", name="twitter:image")
+        if twitter_image and twitter_image.get("content"):
+            return twitter_image["content"]
+            
+    except Exception:
+        print(f"      ❌ Could not fetch image for {url}")
+    return None
 
 def get_tool_details(query):
     print(f"   🕵️‍♂️ Researching: {query}...")
@@ -79,12 +99,14 @@ def analyze_and_upload(category, search_results):
         if start != -1:
             tools = json.loads(ai_response[start:end+1])
             for tool in tools:
-                # Ensure slug is safe
                 if not tool.get('slug'): tool['slug'] = create_slug(tool['title'])
                 
-                # Check duplicates by Slug
+                # Check duplicates
                 existing = supabase.table("tools").select("id").eq("slug", tool['slug']).execute()
                 if not existing.data:
+                    # FETCH IMAGE BEFORE UPLOAD
+                    tool['image_url'] = get_og_image(tool['link'])
+                    
                     supabase.table("tools").insert(tool).execute()
                     print(f"   ✅ PUBLISHED ARTICLE: {tool['title']}")
                 else:
@@ -93,6 +115,25 @@ def analyze_and_upload(category, search_results):
     except Exception as e:
         print(f"   ❌ Error: {e}")
 
+# --- SPECIAL FUNCTION TO FIX MISSING IMAGES ---
+def update_missing_images():
+    print("\n🔄 Checking for missing images in database...")
+    response = supabase.table("tools").select("*").execute()
+    tools = response.data
+    
+    for tool in tools:
+        if not tool.get('image_url'):
+            print(f"   fix: Finding image for {tool['title']}...")
+            image_url = get_og_image(tool['link'])
+            if image_url:
+                supabase.table("tools").update({"image_url": image_url}).eq("id", tool['id']).execute()
+                print("      ✅ Updated!")
+            time.sleep(1)
+
 if __name__ == "__main__":
-    for cat, query in SEARCH_QUERIES.items():
-        analyze_and_upload(cat, get_tool_details(query))
+    # 1. Update existing tools first
+    update_missing_images()
+    
+    # 2. Then hunt for new ones
+    # for cat, query in SEARCH_QUERIES.items():
+    #     analyze_and_upload(cat, get_tool_details(query))
