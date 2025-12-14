@@ -6,11 +6,14 @@ import { createClient } from '@supabase/supabase-js';
 // Initialize with your keys
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const tvly = tavily({ apiKey: process.env.TAVILY_API_KEY });
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_KEY! // SERVICE ROLE KEY needed for writing!
-);
+// Add a check to prevent build crashes
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseKey = process.env.SUPABASE_KEY || "";
 
+const supabase = createClient(
+  supabaseUrl,
+  supabaseKey
+);
 export async function POST(request: Request) {
   try {
     const { query } = await request.json();
