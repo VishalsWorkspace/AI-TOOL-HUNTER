@@ -76,9 +76,13 @@ export default async function ToolPage({ params }: { params: { slug: string } })
             {/* LEFT: The Review */}
             <div className="md:col-span-2 prose prose-invert prose-emerald max-w-none">
                 <h2 className="text-2xl font-bold mb-4 text-white">AI Analysis</h2>
-                <ReactMarkdown className="text-zinc-300 leading-7 space-y-4">
-                    {tool.content || "No review available yet."}
-                </ReactMarkdown>
+                
+                {/* FIX: Move className to a wrapper div */}
+                <div className="text-zinc-300 leading-7 space-y-4">
+                    <ReactMarkdown>
+                        {tool.content || "No review available yet."}
+                    </ReactMarkdown>
+                </div>
             </div>
 
             {/* RIGHT: Features */}
