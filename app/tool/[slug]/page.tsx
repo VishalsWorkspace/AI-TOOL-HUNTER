@@ -3,17 +3,25 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink, CheckCircle2, ArrowLeft, Bot, Sparkles } from "lucide-react";
 import Link from 'next/link';
-import ReactMarkdown from 'react-markdown'; // Run: npm install react-markdown
+import ReactMarkdown from 'react-markdown';
 
 export const revalidate = 60; // Update every minute
 
-// 1. Generate Static Paths (For SEO Speed)
+// --- FIX: ROBUST STATIC PARAMS ---
+// This prevents the "slug not provided" build error
 export async function generateStaticParams() {
   const { data: tools } = await supabase.from('tools').select('slug');
-  return tools?.map(({ slug }) => ({ slug })) || [];
+
+  if (!tools) return [];
+
+  return tools
+    .filter((tool) => tool.slug) // 1. Filter out null/empty slugs
+    .map((tool) => ({
+      slug: String(tool.slug),   // 2. Force convert to string
+    }));
 }
 
-// 2. The Page Logic
+// --- PAGE COMPONENT ---
 export default async function ToolPage({ params }: { params: { slug: string } }) {
   const { data: tool } = await supabase
     .from('tools')
@@ -25,7 +33,7 @@ export default async function ToolPage({ params }: { params: { slug: string } })
 
   return (
     <div className="min-h-screen bg-black text-white pb-20">
-      {/* Aurora Background (Reused) */}
+      {/* Aurora Background */}
       <div className="fixed inset-0 z-0 pointer-events-none">
           <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-500/10 blur-[120px]" />
       </div>
@@ -38,13 +46,14 @@ export default async function ToolPage({ params }: { params: { slug: string } })
         {/* HEADER */}
         <div className="flex flex-col md:flex-row gap-8 items-start">
             <div className="w-24 h-24 bg-zinc-900 rounded-2xl border border-zinc-800 flex items-center justify-center shrink-0">
+                {/* Fallback Icon */}
                 <Bot className="h-12 w-12 text-emerald-500" />
             </div>
             <div className="flex-1">
                 <div className="flex items-center gap-3 mb-3">
                     <h1 className="text-4xl font-bold">{tool.title}</h1>
                     <Badge variant="outline" className="border-emerald-500/50 text-emerald-400 bg-emerald-900/20">
-                        {tool.pricing}
+                        {tool.pricing || "Free"}
                     </Badge>
                 </div>
                 <p className="text-xl text-zinc-400 leading-relaxed">{tool.description}</p>
@@ -76,8 +85,6 @@ export default async function ToolPage({ params }: { params: { slug: string } })
             {/* LEFT: The Review */}
             <div className="md:col-span-2 prose prose-invert prose-emerald max-w-none">
                 <h2 className="text-2xl font-bold mb-4 text-white">AI Analysis</h2>
-                
-                {/* FIX: Move className to a wrapper div */}
                 <div className="text-zinc-300 leading-7 space-y-4">
                     <ReactMarkdown>
                         {tool.content || "No review available yet."}
