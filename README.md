@@ -4,7 +4,7 @@
 > "Don't just search. Hunt."
 
 ### 🚀 Live Demo
-[Click here to view the live app]https://ai-tool-hunter-eight.vercel.app/
+https://ai-tool-hunter-eight.vercel.app/
 
 ### ✨ Features
 * **Deep Search Agent:** Uses **Tavily API** to scan the live web for tools that don't exist in the database yet.
