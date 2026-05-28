@@ -28,9 +28,28 @@ interface Tool {
 
 const CATEGORIES = ["All", "Coding", "Writing", "Design", "Video", "Business", "PDF", "Audio", "Research"];
 
+// --- HELPER FUNCTION TO FIX RELATIVE PATHS ---
+const formatImageUrl = (imgUrl: string | undefined, toolLink: string): string => {
+  if (!imgUrl) return "";
+  
+  // 1. If it's already an absolute URL, just handle the HTTP upgrade
+  if (imgUrl.startsWith("http://") || imgUrl.startsWith("https://")) {
+    return imgUrl.replace(/^http:\/\//i, 'https://');
+  }
+
+  // 2. If it's a relative path (e.g., /assets/image.png), extract the base domain of the tool
+  try {
+    const urlObj = new URL(toolLink);
+    const origin = urlObj.origin; // Returns "https://clickup.com" or "https://canva.com"
+    const cleanImgPath = imgUrl.startsWith("/") ? imgUrl : `/${imgUrl}`;
+    return `${origin}${cleanImgPath}`;
+  } catch (e) {
+    return imgUrl;
+  }
+};
+
 // --- SUB-COMPONENTS ---
 
-// 1. The "Billion Dollar" Card
 const ToolCard = ({ 
   tool, 
   handleVote, 
@@ -40,21 +59,22 @@ const ToolCard = ({
   handleVote: (id: number, e: React.MouseEvent) => void; 
   hasVoted: boolean 
 }) => {
-  // Local state to handle broken image links gracefully
   const [imgError, setImgError] = useState(false);
+
+  // Compute the absolute, secure image source path
+  const finalImgSrc = useMemo(() => formatImageUrl(tool.image_url, tool.link), [tool.image_url, tool.link]);
 
   return (
     <div className="group relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:border-emerald-500/50 transition-all duration-300 hover:shadow-[0_0_30px_-5px_rgba(16,185,129,0.3)] flex flex-col h-full">
       
       {/* IMAGE BANNER */}
       <div className="h-36 w-full bg-zinc-900/50 relative overflow-hidden border-b border-white/5">
-          {tool.image_url && !imgError ? (
+          {finalImgSrc && !imgError ? (
               <img 
-                // Automatically upgrades insecure http:// links to https:// to bypass browser blocks
-                src={tool.image_url.replace(/^http:\/\//i, 'https://')} 
+                src={finalImgSrc} 
                 alt={tool.title} 
                 className="w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" 
-                onError={() => setImgError(true)} // Instantly swap to fallback if image URL is dead
+                onError={() => setImgError(true)} 
               />
           ) : (
               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-900 to-black">
@@ -64,7 +84,6 @@ const ToolCard = ({
               </div>
           )}
           
-          {/* Pricing Badge Overlay */}
           {tool.pricing && (
               <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md text-[10px] font-bold text-white border border-white/10 uppercase tracking-wider shadow-xl">
                   {tool.pricing}
@@ -74,8 +93,6 @@ const ToolCard = ({
 
       {/* CONTENT */}
       <div className="p-6 flex flex-col flex-1">
-          
-          {/* Header Row */}
           <div className="flex justify-between items-start mb-3">
               <h3 className="text-xl font-bold text-white leading-tight group-hover:text-emerald-400 transition-colors">
                 {tool.slug ? (
@@ -89,7 +106,6 @@ const ToolCard = ({
                 )}
               </h3>
 
-              {/* Vote Button */}
               <button 
                   onClick={(e) => handleVote(tool.id, e)}
                   className={cn(
@@ -108,7 +124,6 @@ const ToolCard = ({
               {tool.description}
           </p>
 
-          {/* Pros / Features */}
           {tool.pros && tool.pros.length > 0 && (
               <div className="mb-6 space-y-2">
                   {tool.pros.slice(0, 2).map((pro, i) => (
@@ -120,7 +135,6 @@ const ToolCard = ({
               </div>
           )}
 
-          {/* Footer Actions */}
           <div className="mt-auto pt-4 border-t border-white/5 flex gap-3">
               <a 
                   href={tool.link} 
@@ -147,7 +161,6 @@ const ToolCard = ({
   );
 };
 
-// 2. The "Thinking" Skeleton (Displayed while Hunting)
 const SkeletonCard = () => (
   <div className="bg-zinc-900/20 border border-white/5 rounded-2xl h-[400px] flex flex-col animate-pulse overflow-hidden">
     <div className="h-36 bg-zinc-800/50 w-full"></div>
@@ -172,7 +185,6 @@ export default function ToolDashboard({ tools: initialTools }: { tools: Tool[] }
   const [isHunting, setIsHunting] = useState(false);
   const [votedTools, setVotedTools] = useState<number[]>([]);
 
-  // Memoized Filter Logic for Performance
   const filteredTools = useMemo(() => {
     return allTools.filter((tool) => {
       const q = searchQuery.toLowerCase();
@@ -187,7 +199,6 @@ export default function ToolDashboard({ tools: initialTools }: { tools: Tool[] }
     });
   }, [allTools, searchQuery, selectedCategory]);
 
-  // Handle Deep Hunt
   const handleDeepHunt = async () => {
     if (!searchQuery) return;
     setIsHunting(true);
@@ -199,12 +210,10 @@ export default function ToolDashboard({ tools: initialTools }: { tools: Tool[] }
       const data = await res.json();
       
       if (data.success && data.tools.length > 0) {
-        // Prevent key collisions gracefully
         const newTools = data.tools.map((t: Tool) => ({ ...t, id: Date.now() + Math.random() })); 
         
         setAllTools(prev => {
             const combined = [...newTools, ...prev];
-            // Remove duplicates by title
             return combined.filter((tool, index, self) =>
                 index === self.findIndex((t) => t.title === tool.title)
             );
@@ -218,9 +227,8 @@ export default function ToolDashboard({ tools: initialTools }: { tools: Tool[] }
     }
   };
 
-  // Handle Vote
   const handleVote = async (toolId: number, e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent link click if wrapped
+    e.preventDefault();
     e.stopPropagation();
     
     if (votedTools.includes(toolId)) return;
@@ -228,14 +236,13 @@ export default function ToolDashboard({ tools: initialTools }: { tools: Tool[] }
     setAllTools(prev => prev.map(t => t.id === toolId ? { ...t, votes: (t.votes || 0) + 1 } : t));
     setVotedTools(prev => [...prev, toolId]);
 
-    // Fire and forget to DB
     await supabase.rpc('increment_votes', { row_id: toolId });
   };
 
   return (
     <div className="w-full flex flex-col items-center pb-20 px-4">
       
-      {/* 1. SEARCH INPUT (With Tilt Effect) */}
+      {/* Search Input */}
       <div className="mt-12 w-full max-w-xl relative group z-20">
          <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-xl blur opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-tilt"></div>
          <div className="relative flex items-center bg-black rounded-xl border border-white/10">
@@ -257,7 +264,7 @@ export default function ToolDashboard({ tools: initialTools }: { tools: Tool[] }
          </div>
       </div>
 
-      {/* 2. FILTERS */}
+      {/* Filters */}
       <div className="mt-8 flex flex-wrap gap-2 justify-center max-w-4xl z-10">
         {CATEGORIES.map((cat) => (
           <button
@@ -275,11 +282,10 @@ export default function ToolDashboard({ tools: initialTools }: { tools: Tool[] }
         ))}
       </div>
 
-      {/* 3. GRID */}
+      {/* Grid */}
       <div className="mt-16 w-full max-w-7xl z-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             
-            {/* Skeletons appear when hunting */}
             {isHunting && (
                 <>
                     <SkeletonCard />
@@ -288,7 +294,6 @@ export default function ToolDashboard({ tools: initialTools }: { tools: Tool[] }
                 </>
             )}
 
-            {/* Real Tools */}
             {filteredTools.length > 0 ? (
                 filteredTools.map((tool) => (
                     <ToolCard 
@@ -299,7 +304,6 @@ export default function ToolDashboard({ tools: initialTools }: { tools: Tool[] }
                     />
                 ))
             ) : !isHunting ? (
-                // 4. THE "ACTIVE HUNTER" EMPTY STATE
                 <div className="col-span-full flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in duration-500">
                     <div className="relative mb-6 group cursor-pointer" onClick={handleDeepHunt}>
                         <div className="absolute -inset-4 bg-emerald-500/20 rounded-full blur-xl group-hover:bg-emerald-500/40 transition-all duration-500"></div>
