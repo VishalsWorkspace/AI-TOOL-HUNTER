@@ -298,4 +298,34 @@ export default function ToolDashboard({ tools: initialTools }: { tools: Tool[] }
                         hasVoted={votedTools.includes(tool.id)}
                     />
                 ))
-            ) :
+            ) : !isHunting ? (
+                // 4. THE "ACTIVE HUNTER" EMPTY STATE
+                <div className="col-span-full flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in duration-500">
+                    <div className="relative mb-6 group cursor-pointer" onClick={handleDeepHunt}>
+                        <div className="absolute -inset-4 bg-emerald-500/20 rounded-full blur-xl group-hover:bg-emerald-500/40 transition-all duration-500"></div>
+                        <div className="relative bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-2xl group-hover:scale-110 transition-transform duration-300">
+                            <Sparkles className="h-12 w-12 text-emerald-500 animate-pulse" />
+                        </div>
+                    </div>
+                    
+                    <h2 className="text-3xl font-bold text-white mb-3">
+                        No "{searchQuery}" tools in our vault.
+                    </h2>
+                    <p className="text-zinc-400 mb-8 max-w-md mx-auto text-lg">
+                        But they exist on the web. Activate the AI Agent to hunt them down for you.
+                    </p>
+                    
+                    <Button 
+                        onClick={handleDeepHunt}
+                        className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-10 py-7 text-xl rounded-2xl shadow-[0_0_40px_-10px_rgba(16,185,129,0.5)] transition-all hover:scale-105"
+                    >
+                        <Zap className="mr-2 h-6 w-6 fill-black" />
+                        Launch Deep Search
+                    </Button>
+                </div>
+            ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
