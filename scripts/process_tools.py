@@ -55,10 +55,10 @@ def get_og_image(url):
             # 🚨 Automatically resolves relative paths into absolute links!
             return urljoin(url, og_image["content"])
             
-        # Priority 2: Twitter Image
+        # Priority 2: Twitter Image (also needs urljoin for relative paths)
         twitter_image = soup.find("meta", name="twitter:image")
         if twitter_image and twitter_image.get("content"):
-            return twitter_image["content"]
+            return urljoin(url, twitter_image["content"])
             
     except Exception:
         print(f"      ❌ Could not fetch image for {url}")
