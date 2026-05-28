@@ -28,29 +28,27 @@ interface Tool {
 
 const CATEGORIES = ["All", "Coding", "Writing", "Design", "Video", "Business", "PDF", "Audio", "Research"];
 
-// --- HELPER FUNCTION TO FIX RELATIVE PATHS + PROXY FOR CORS/HOTLINK BYPASS ---
+// --- STAGE 1: Resolve + proxy the stored OG image through wsrv.nl (bypasses CORS/hotlinking) ---
 const formatImageUrl = (imgUrl: string | undefined, toolLink: string): string => {
   if (!imgUrl) return "";
-
   let absoluteUrl: string;
-
-  // 1. If it's a relative path, resolve it against the tool's origin
   if (!imgUrl.startsWith("http://") && !imgUrl.startsWith("https://")) {
     try {
-      const urlObj = new URL(toolLink);
-      const cleanImgPath = imgUrl.startsWith("/") ? imgUrl : `/${imgUrl}`;
-      absoluteUrl = `${urlObj.origin}${cleanImgPath}`;
-    } catch (e) {
-      return imgUrl;
-    }
+      const origin = new URL(toolLink).origin;
+      absoluteUrl = `${origin}${imgUrl.startsWith("/") ? imgUrl : `/${imgUrl}`}`;
+    } catch { return ""; }
   } else {
-    // 2. Ensure HTTPS
     absoluteUrl = imgUrl.replace(/^http:\/\//i, "https://");
   }
-
-  // 3. Route through wsrv.nl image proxy to bypass CORS and hotlinking blocks.
-  //    This is the fix for images showing as bot icons in the dashboard.
   return `https://wsrv.nl/?url=${encodeURIComponent(absoluteUrl)}&w=600&h=300&fit=cover&output=webp`;
+};
+
+// --- STAGE 2: Clearbit Logo API — works for any domain, even when image_url is NULL ---
+const getClearbitLogo = (toolLink: string): string => {
+  try {
+    const domain = new URL(toolLink).hostname.replace(/^www\./, "");
+    return `https://logo.clearbit.com/${domain}`;
+  } catch { return ""; }
 };
 
 // --- SUB-COMPONENTS ---
@@ -64,22 +62,46 @@ const ToolCard = ({
   handleVote: (id: number, e: React.MouseEvent) => void; 
   hasVoted: boolean 
 }) => {
-  const [imgError, setImgError] = useState(false);
+  // 3-stage image fallback:
+  // Stage 1 → stored OG image via wsrv.nl proxy (handles CORS/hotlinking)
+  // Stage 2 → Clearbit logo (works even when image_url is NULL — just needs the domain)
+  // Stage 3 → bot/video icon (last resort)
+  const [imgStage, setImgStage] = useState<1 | 2 | 3>(1);
 
-  // Compute the absolute, secure image source path
-  const finalImgSrc = useMemo(() => formatImageUrl(tool.image_url, tool.link), [tool.image_url, tool.link]);
+  const stage1Src = useMemo(() => formatImageUrl(tool.image_url, tool.link), [tool.image_url, tool.link]);
+  const stage2Src = useMemo(() => getClearbitLogo(tool.link), [tool.link]);
+
+  // Pick the right src based on current stage
+  const activeSrc = imgStage === 1 ? stage1Src : imgStage === 2 ? stage2Src : "";
+
+  const handleImgError = () => {
+    if (imgStage === 1 && stage2Src) {
+      setImgStage(2); // OG image failed → try Clearbit logo
+    } else {
+      setImgStage(3); // Clearbit also failed → show icon
+    }
+  };
+
+  // If stage 1 has no URL (image_url was NULL), skip straight to stage 2
+  const displaySrc = (imgStage === 1 && !stage1Src) ? stage2Src : activeSrc;
+  const isClearbitLogo = (imgStage === 2) || (imgStage === 1 && !stage1Src);
 
   return (
     <div className="group relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:border-emerald-500/50 transition-all duration-300 hover:shadow-[0_0_30px_-5px_rgba(16,185,129,0.3)] flex flex-col h-full">
       
       {/* IMAGE BANNER */}
       <div className="h-36 w-full bg-zinc-900/50 relative overflow-hidden border-b border-white/5">
-          {finalImgSrc && !imgError ? (
+          {displaySrc && imgStage !== 3 ? (
               <img 
-                src={finalImgSrc} 
+                src={displaySrc}
                 alt={tool.title} 
-                className="w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" 
-                onError={() => setImgError(true)} 
+                className={cn(
+                  "w-full h-full transition-all duration-500",
+                  isClearbitLogo
+                    ? "object-contain p-6 opacity-70 group-hover:opacity-100 group-hover:scale-105"
+                    : "object-cover opacity-60 group-hover:opacity-100 group-hover:scale-105"
+                )}
+                onError={handleImgError}
               />
           ) : (
               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-900 to-black">
