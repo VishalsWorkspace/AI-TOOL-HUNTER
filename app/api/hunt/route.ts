@@ -14,6 +14,43 @@ const supabase = createClient(
   supabaseUrl,
   supabaseKey
 );
+// --- OG IMAGE FETCHER (mirrors process_tools.py's get_og_image) ---
+// Runs server-side so no CORS issues. Uses regex instead of BeautifulSoup.
+async function getOgImage(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+    const html = await response.text();
+
+    // Priority 1: og:image (handles both attribute orderings)
+    const ogMatch =
+      html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
+      html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+    if (ogMatch?.[1]) {
+      const img = ogMatch[1];
+      return img.startsWith('http') ? img : new URL(img, url).href;
+    }
+
+    // Priority 2: twitter:image
+    const twitterMatch =
+      html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i) ||
+      html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']twitter:image["']/i);
+    if (twitterMatch?.[1]) {
+      const img = twitterMatch[1];
+      return img.startsWith('http') ? img : new URL(img, url).href;
+    }
+  } catch {
+    // Silent fail — image is optional, don't crash the hunt
+  }
+  return null;
+}
+
 export async function POST(request: Request) {
   try {
     const { query } = await request.json();
@@ -85,18 +122,23 @@ export async function POST(request: Request) {
     if (tools.length > 0) {
       for (const tool of tools) {
         if (!tool.link.includes("example.com") && !tool.link.includes("google.com")) {
-            // Check if exists first to avoid duplicates
+
+            // BUG 1 FIX: select('*') so the full DB record (including image_url) is returned
             const { data: existing } = await supabase
                 .from('tools')
-                .select('id')
+                .select('*')
                 .eq('link', tool.link)
                 .single();
 
             if (!existing) {
-                const { data, error } = await supabase.from('tools').insert(tool).select();
+                // BUG 2 FIX: fetch OG image before insert, same as process_tools.py
+                tool.image_url = await getOgImage(tool.link);
+
+                const { data } = await supabase.from('tools').insert(tool).select();
                 if (data) processedTools.push(data[0]);
             } else {
-                processedTools.push(tool); // It exists, just return it to UI
+                // BUG 1 FIX: push the full DB record (has image_url), not the bare AI object
+                processedTools.push(existing);
             }
         }
       }
