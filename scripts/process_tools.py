@@ -8,6 +8,7 @@ from groq import Groq
 from supabase import create_client, Client
 from tavily import TavilyClient
 from dotenv import load_dotenv
+from urllib.parse import urljoin
 
 load_dotenv('.env.local')
 
@@ -51,7 +52,8 @@ def get_og_image(url):
         # Priority 1: Open Graph Image
         og_image = soup.find("meta", property="og:image")
         if og_image and og_image.get("content"):
-            return og_image["content"]
+            # 🚨 Automatically resolves relative paths into absolute links!
+            return urljoin(url, og_image["content"])
             
         # Priority 2: Twitter Image
         twitter_image = soup.find("meta", name="twitter:image")
