@@ -135,5 +135,5 @@ if __name__ == "__main__":
     update_missing_images()
     
     # 2. Then hunt for new ones
-    # for cat, query in SEARCH_QUERIES.items():
-    #     analyze_and_upload(cat, get_tool_details(query))
+      for cat, query in SEARCH_QUERIES.items():
+          analyze_and_upload(cat, get_tool_details(query))
