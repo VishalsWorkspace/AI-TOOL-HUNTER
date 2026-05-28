@@ -13,7 +13,7 @@ load_dotenv('.env.local')
 
 # --- CONFIGURATION ---
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 TAVILY_API_KEY = os.environ.get("TAVILY_API_KEY")
 # ---------------------
