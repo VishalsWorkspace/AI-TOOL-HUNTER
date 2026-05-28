@@ -3,15 +3,22 @@ import ToolDashboard from "@/components/ToolDashboard";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Terminal } from "lucide-react";
 
-// Revalidate data every 60 seconds (keeps it fresh)
-export const revalidate = 60;
+// 🚨 CRITICAL CACHE OVERRIDE 🚨
+// This forces Next.js to fetch fresh data from Supabase on every single page load.
+// It guarantees that the moment your Python Harvester finds a new image, it appears here.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function Home() {
-  // Fetch tools from DB
-  const { data: tools } = await supabase
+  // Fetch tools from DB - explicitly selecting EVERYTHING (*)
+  const { data: tools, error } = await supabase
     .from('tools')
     .select('*')
-    .order('created_at', { ascending: false });
+    .order('id', { ascending: false });
+
+  if (error) {
+    console.error("Error fetching tools:", error);
+  }
 
   return (
     <main className="min-h-screen bg-black selection:bg-emerald-500/30 text-white overflow-x-hidden relative">
@@ -44,12 +51,12 @@ export default async function Home() {
               </h1>
               
               <p className="text-xl text-zinc-400 leading-relaxed">
-                  Don't just search. <span className="text-white font-bold">Hunt.</span> <br className="hidden md:block"/>
+                  Don&apos;t just search. <span className="text-white font-bold">Hunt.</span> <br className="hidden md:block"/>
                   Our AI Agent scans the live internet daily to find the Top 1% of tools that actually work.
               </p>
           </div>
 
-          {/* 4. THE DASHBOARD (Your existing search/grid) */}
+          {/* 4. THE DASHBOARD (Your Grid & Search) */}
           <ToolDashboard tools={tools || []} />
           
       </div>
