@@ -28,24 +28,29 @@ interface Tool {
 
 const CATEGORIES = ["All", "Coding", "Writing", "Design", "Video", "Business", "PDF", "Audio", "Research"];
 
-// --- HELPER FUNCTION TO FIX RELATIVE PATHS ---
+// --- HELPER FUNCTION TO FIX RELATIVE PATHS + PROXY FOR CORS/HOTLINK BYPASS ---
 const formatImageUrl = (imgUrl: string | undefined, toolLink: string): string => {
   if (!imgUrl) return "";
-  
-  // 1. If it's already an absolute URL, just handle the HTTP upgrade
-  if (imgUrl.startsWith("http://") || imgUrl.startsWith("https://")) {
-    return imgUrl.replace(/^http:\/\//i, 'https://');
+
+  let absoluteUrl: string;
+
+  // 1. If it's a relative path, resolve it against the tool's origin
+  if (!imgUrl.startsWith("http://") && !imgUrl.startsWith("https://")) {
+    try {
+      const urlObj = new URL(toolLink);
+      const cleanImgPath = imgUrl.startsWith("/") ? imgUrl : `/${imgUrl}`;
+      absoluteUrl = `${urlObj.origin}${cleanImgPath}`;
+    } catch (e) {
+      return imgUrl;
+    }
+  } else {
+    // 2. Ensure HTTPS
+    absoluteUrl = imgUrl.replace(/^http:\/\//i, "https://");
   }
 
-  // 2. If it's a relative path (e.g., /assets/image.png), extract the base domain of the tool
-  try {
-    const urlObj = new URL(toolLink);
-    const origin = urlObj.origin; // Returns "https://clickup.com" or "https://canva.com"
-    const cleanImgPath = imgUrl.startsWith("/") ? imgUrl : `/${imgUrl}`;
-    return `${origin}${cleanImgPath}`;
-  } catch (e) {
-    return imgUrl;
-  }
+  // 3. Route through wsrv.nl image proxy to bypass CORS and hotlinking blocks.
+  //    This is the fix for images showing as bot icons in the dashboard.
+  return `https://wsrv.nl/?url=${encodeURIComponent(absoluteUrl)}&w=600&h=300&fit=cover&output=webp`;
 };
 
 // --- SUB-COMPONENTS ---
