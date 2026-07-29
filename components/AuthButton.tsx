@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { User } from "@supabase/supabase-js";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase";
+import { useUser } from "@/lib/useUser";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, LogOut } from "lucide-react";
+import { Bookmark, ChevronDown, LogOut } from "lucide-react";
 
 const GoogleIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 48 48" className={className}>
@@ -28,27 +29,9 @@ const GoogleIcon = ({ className }: { className?: string }) => (
 );
 
 export default function AuthButton() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading } = useUser();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const supabase = createClient();
-
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user);
-      setLoading(false);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -125,6 +108,13 @@ export default function AuthButton() {
             <p className="text-sm font-bold text-white truncate">{name}</p>
             {user.email && <p className="text-xs text-zinc-500 truncate">{user.email}</p>}
           </div>
+          <Link
+            href="/my-tools"
+            onClick={() => setMenuOpen(false)}
+            className="w-full flex items-center gap-2 px-4 py-3 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-white transition-colors border-b border-white/10"
+          >
+            <Bookmark className="h-4 w-4" /> My Saved Tools
+          </Link>
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-2 px-4 py-3 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-white transition-colors"

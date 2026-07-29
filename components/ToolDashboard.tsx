@@ -2,229 +2,76 @@
 
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { 
-  Search, ExternalLink, BookOpen, 
-  Sparkles, Zap, Check, Bot, Video, Flame 
-} from "lucide-react";
+import { Search, Sparkles, Zap, Clock, Bookmark, ArrowDownAZ } from "lucide-react";
 import { cn } from "@/lib/utils";
-import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
+import type { Tool } from "@/lib/types";
+import { CATEGORIES, PRICING_FILTERS, classifyPricing, tokenizeQuery, USE_CASE_CHIPS, type PricingFilter } from "@/lib/constants";
+import { ToolCard, SkeletonCard } from "@/components/ToolCard";
 
-// --- INTERFACES ---
-interface Tool {
-  id: number;
-  title: string;
-  description: string;
-  tags: string[];
-  utility_score: number;
-  link: string;
-  tutorial_link?: string;
-  pricing?: string;
-  pros?: string[];
-  slug?: string;      
-  image_url?: string; 
-  votes?: number;     
-}
+type SortOption = "newest" | "mostSaved" | "alphabetical";
 
-const CATEGORIES = ["All", "Coding", "Writing", "Design", "Video", "Business", "PDF", "Audio", "Research"];
-
-// --- STAGE 1: Resolve + proxy the stored OG image through wsrv.nl (bypasses CORS/hotlinking) ---
-const formatImageUrl = (imgUrl: string | undefined, toolLink: string): string => {
-  if (!imgUrl) return "";
-  let absoluteUrl: string;
-  if (!imgUrl.startsWith("http://") && !imgUrl.startsWith("https://")) {
-    try {
-      const origin = new URL(toolLink).origin;
-      absoluteUrl = `${origin}${imgUrl.startsWith("/") ? imgUrl : `/${imgUrl}`}`;
-    } catch { return ""; }
-  } else {
-    absoluteUrl = imgUrl.replace(/^http:\/\//i, "https://");
-  }
-  return `https://wsrv.nl/?url=${encodeURIComponent(absoluteUrl)}&w=600&h=300&fit=cover&output=webp`;
-};
-
-// --- STAGE 2: Clearbit Logo API — works for any domain, even when image_url is NULL ---
-const getClearbitLogo = (toolLink: string): string => {
-  try {
-    const domain = new URL(toolLink).hostname.replace(/^www\./, "");
-    return `https://logo.clearbit.com/${domain}`;
-  } catch { return ""; }
-};
-
-// --- SUB-COMPONENTS ---
-
-const ToolCard = ({ 
-  tool, 
-  handleVote, 
-  hasVoted 
-}: { 
-  tool: Tool; 
-  handleVote: (id: number, e: React.MouseEvent) => void; 
-  hasVoted: boolean 
-}) => {
-  // 3-stage image fallback:
-  // Stage 1 → stored OG image via wsrv.nl proxy (handles CORS/hotlinking)
-  // Stage 2 → Clearbit logo (works even when image_url is NULL — just needs the domain)
-  // Stage 3 → bot/video icon (last resort)
-  const [imgStage, setImgStage] = useState<1 | 2 | 3>(1);
-
-  const stage1Src = useMemo(() => formatImageUrl(tool.image_url, tool.link), [tool.image_url, tool.link]);
-  const stage2Src = useMemo(() => getClearbitLogo(tool.link), [tool.link]);
-
-  // Pick the right src based on current stage
-  const activeSrc = imgStage === 1 ? stage1Src : imgStage === 2 ? stage2Src : "";
-
-  const handleImgError = () => {
-    if (imgStage === 1 && stage2Src) {
-      setImgStage(2); // OG image failed → try Clearbit logo
-    } else {
-      setImgStage(3); // Clearbit also failed → show icon
-    }
-  };
-
-  // If stage 1 has no URL (image_url was NULL), skip straight to stage 2
-  const displaySrc = (imgStage === 1 && !stage1Src) ? stage2Src : activeSrc;
-  const isClearbitLogo = (imgStage === 2) || (imgStage === 1 && !stage1Src);
-
-  return (
-    <div className="group relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:border-emerald-500/50 transition-all duration-300 hover:shadow-[0_0_30px_-5px_rgba(16,185,129,0.3)] flex flex-col h-full">
-      
-      {/* IMAGE BANNER */}
-      <div className="h-36 w-full bg-zinc-900/50 relative overflow-hidden border-b border-white/5">
-          {displaySrc && imgStage !== 3 ? (
-              <img 
-                src={displaySrc}
-                alt={tool.title} 
-                className={cn(
-                  "w-full h-full transition-all duration-500",
-                  isClearbitLogo
-                    ? "object-contain p-6 opacity-70 group-hover:opacity-100 group-hover:scale-105"
-                    : "object-cover opacity-60 group-hover:opacity-100 group-hover:scale-105"
-                )}
-                onError={handleImgError}
-              />
-          ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-900 to-black">
-                  <div className="text-zinc-700 group-hover:text-emerald-500/50 transition-colors">
-                     {tool.tags?.some(t => t.includes("Video")) ? <Video className="h-12 w-12" /> : <Bot className="h-12 w-12" />}
-                  </div>
-              </div>
-          )}
-          
-          {tool.pricing && (
-              <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md text-[10px] font-bold text-white border border-white/10 uppercase tracking-wider shadow-xl">
-                  {tool.pricing}
-              </div>
-          )}
-      </div>
-
-      {/* CONTENT */}
-      <div className="p-6 flex flex-col flex-1">
-          <div className="flex justify-between items-start mb-3">
-              <h3 className="text-xl font-bold text-white leading-tight group-hover:text-emerald-400 transition-colors">
-                {tool.slug ? (
-                  <Link href={`/tool/${tool.slug}`} className="hover:underline decoration-emerald-500 decoration-2 underline-offset-4">
-                      {tool.title}
-                  </Link>
-                ) : (
-                  <a href={tool.link} target="_blank" rel="noopener noreferrer">
-                      {tool.title}
-                  </a>
-                )}
-              </h3>
-
-              <button 
-                  onClick={(e) => handleVote(tool.id, e)}
-                  className={cn(
-                      "flex items-center gap-1.5 text-xs font-bold px-2 py-1 rounded-lg border transition-all ml-2",
-                      hasVoted 
-                          ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/50"
-                          : "bg-zinc-800 text-zinc-500 border-zinc-700 hover:text-white hover:border-zinc-500"
-                  )}
-              >
-                  <Flame className={cn("h-3 w-3", hasVoted && "fill-emerald-400")} />
-                  {tool.votes || 0}
-              </button>
-          </div>
-
-          <p className="text-zinc-400 text-sm leading-relaxed mb-6 line-clamp-2">
-              {tool.description}
-          </p>
-
-          {tool.pros && tool.pros.length > 0 && (
-              <div className="mb-6 space-y-2">
-                  {tool.pros.slice(0, 2).map((pro, i) => (
-                      <div key={i} className="flex items-center gap-2 text-xs text-zinc-300">
-                          <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                          <span className="truncate">{pro}</span>
-                      </div>
-                  ))}
-              </div>
-          )}
-
-          <div className="mt-auto pt-4 border-t border-white/5 flex gap-3">
-              <a 
-                  href={tool.link} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex-1 bg-white text-black font-bold text-sm py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-zinc-200 transition-colors shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)]"
-              >
-                  Visit <ExternalLink className="h-3 w-3" />
-              </a>
-              {tool.tutorial_link && (
-                  <a 
-                      href={tool.tutorial_link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-2.5 rounded-lg bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-white hover:border-zinc-600 transition-all"
-                      title="Read Guide"
-                  >
-                      <BookOpen className="h-4 w-4" />
-                  </a>
-              )}
-          </div>
-      </div>
-    </div>
-  );
-};
-
-const SkeletonCard = () => (
-  <div className="bg-zinc-900/20 border border-white/5 rounded-2xl h-[400px] flex flex-col animate-pulse overflow-hidden">
-    <div className="h-36 bg-zinc-800/50 w-full"></div>
-    <div className="p-6 flex-1 flex flex-col">
-        <div className="flex justify-between mb-4">
-            <div className="h-8 w-1/2 bg-zinc-800 rounded-lg"></div>
-            <div className="h-8 w-12 bg-zinc-800 rounded-lg"></div>
-        </div>
-        <div className="h-4 w-full bg-zinc-800/50 rounded mb-2"></div>
-        <div className="h-4 w-2/3 bg-zinc-800/50 rounded mb-6"></div>
-        <div className="mt-auto h-10 w-full bg-zinc-800 rounded-lg"></div>
-    </div>
-  </div>
-);
+const SORT_OPTIONS: { value: SortOption; label: string; icon: typeof Clock }[] = [
+  { value: "newest", label: "Newest", icon: Clock },
+  { value: "mostSaved", label: "Most Saved", icon: Bookmark },
+  { value: "alphabetical", label: "A–Z", icon: ArrowDownAZ },
+];
 
 // --- MAIN DASHBOARD ---
 
-export default function ToolDashboard({ tools: initialTools }: { tools: Tool[] }) {
+export default function ToolDashboard({
+  tools: initialTools,
+  saveCounts = {},
+}: {
+  tools: Tool[];
+  saveCounts?: Record<number, number>;
+}) {
   const [allTools, setAllTools] = useState<Tool[]>(initialTools);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedPricing, setSelectedPricing] = useState<PricingFilter>("ALL");
+  const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [isHunting, setIsHunting] = useState(false);
   const [votedTools, setVotedTools] = useState<number[]>([]);
 
+  const toggleCategory = (cat: string) => {
+    if (cat === "All") {
+      setSelectedCategories([]);
+      return;
+    }
+    setSelectedCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+    );
+  };
+
   const filteredTools = useMemo(() => {
+    const tokens = tokenizeQuery(searchQuery);
+
     return allTools.filter((tool) => {
-      const q = searchQuery.toLowerCase();
-      const matchesSearch = tool.title.toLowerCase().includes(q) || 
-                            tool.description.toLowerCase().includes(q) || 
-                            (tool.tags?.some(t => t.toLowerCase().includes(q)));
-      
-      const matchesCategory = selectedCategory === "All" || 
-                              (tool.tags?.some(tag => tag.includes(selectedCategory)));
-      
-      return matchesSearch && matchesCategory;
+      const matchesSearch = tokens.length === 0 || tokens.some((tok) =>
+                            tool.title.toLowerCase().includes(tok) ||
+                            tool.description.toLowerCase().includes(tok) ||
+                            (tool.tags?.some(t => t.toLowerCase().includes(tok))));
+
+      const matchesCategory = selectedCategories.length === 0 ||
+                              (tool.tags?.some(tag => selectedCategories.some(cat => tag.includes(cat))));
+
+      const matchesPricing = selectedPricing === "ALL" || classifyPricing(tool.pricing) === selectedPricing;
+
+      return matchesSearch && matchesCategory && matchesPricing;
     });
-  }, [allTools, searchQuery, selectedCategory]);
+  }, [allTools, searchQuery, selectedCategories, selectedPricing]);
+
+  const sortedTools = useMemo(() => {
+    const arr = [...filteredTools];
+    if (sortBy === "alphabetical") {
+      arr.sort((a, b) => a.title.localeCompare(b.title));
+    } else if (sortBy === "mostSaved") {
+      arr.sort((a, b) => (saveCounts[b.id] || 0) - (saveCounts[a.id] || 0));
+    }
+    // "newest" keeps server order (tools arrive ordered by id desc)
+    return arr;
+  }, [filteredTools, sortBy, saveCounts]);
 
   const handleDeepHunt = async () => {
     if (!searchQuery) return;
@@ -245,7 +92,7 @@ export default function ToolDashboard({ tools: initialTools }: { tools: Tool[] }
                 index === self.findIndex((t) => t.title === tool.title)
             );
         });
-        setSelectedCategory("All");
+        setSelectedCategories([]);
       }
     } catch (e) { 
       console.error(e); 
@@ -274,15 +121,15 @@ export default function ToolDashboard({ tools: initialTools }: { tools: Tool[] }
          <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-xl blur opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-tilt"></div>
          <div className="relative flex items-center bg-black rounded-xl border border-white/10">
            <Search className="ml-4 h-5 w-5 text-zinc-500" />
-           <input 
+           <input
              className="flex-1 bg-transparent border-none px-4 py-4 text-white placeholder:text-zinc-600 focus:outline-none focus:ring-0 text-lg"
-             placeholder="What do you want to build? (e.g. '3D Assets')..."
+             placeholder="Try: &quot;I want to generate images from text&quot;..."
              value={searchQuery}
-             onChange={(e) => setSearchQuery(e.target.value)} 
+             onChange={(e) => setSearchQuery(e.target.value)}
              onKeyDown={(e) => e.key === 'Enter' && handleDeepHunt()}
            />
-           <Button 
-             onClick={handleDeepHunt} 
+           <Button
+             onClick={handleDeepHunt}
              disabled={isHunting}
              className="mr-2 bg-zinc-900 text-white hover:bg-zinc-800 border border-zinc-800"
            >
@@ -291,28 +138,85 @@ export default function ToolDashboard({ tools: initialTools }: { tools: Tool[] }
          </div>
       </div>
 
-      {/* Filters */}
+      {/* Use Case Chips */}
+      {!searchQuery && (
+        <div className="mt-4 flex flex-wrap gap-2 justify-center max-w-2xl z-10">
+          {USE_CASE_CHIPS.map((chip) => (
+            <button
+              key={chip}
+              onClick={() => setSearchQuery(chip)}
+              className="px-3 py-1.5 rounded-full text-xs text-zinc-400 border border-white/10 bg-zinc-900/40 hover:text-emerald-400 hover:border-emerald-500/40 transition-colors"
+            >
+              &quot;{chip}&quot;
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Category Filters (multi-select) */}
       <div className="mt-8 flex flex-wrap gap-2 justify-center max-w-4xl z-10">
-        {CATEGORIES.map((cat) => (
+        {CATEGORIES.map((cat) => {
+          const active = cat === "All" ? selectedCategories.length === 0 : selectedCategories.includes(cat);
+          return (
+            <button
+              key={cat}
+              onClick={() => toggleCategory(cat)}
+              aria-pressed={active}
+              className={cn(
+                "px-4 py-2 rounded-full text-xs font-bold transition-all border uppercase tracking-wider backdrop-blur-md",
+                active
+                  ? "bg-emerald-500 text-black border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]"
+                  : "bg-zinc-900/50 text-zinc-500 border-zinc-800 hover:text-white hover:border-zinc-600"
+              )}
+            >
+              {cat}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Pricing Filter */}
+      <div className="mt-3 flex flex-wrap gap-2 justify-center max-w-4xl z-10">
+        {PRICING_FILTERS.map((p) => (
           <button
-            key={cat}
-            onClick={() => setSelectedCategory(cat)}
+            key={p}
+            onClick={() => setSelectedPricing(p)}
+            aria-pressed={selectedPricing === p}
             className={cn(
-              "px-4 py-2 rounded-full text-xs font-bold transition-all border uppercase tracking-wider backdrop-blur-md",
-              selectedCategory === cat
-                ? "bg-emerald-500 text-black border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]"
-                : "bg-zinc-900/50 text-zinc-500 border-zinc-800 hover:text-white hover:border-zinc-600"
+              "px-3 py-1.5 rounded-full text-[11px] font-bold transition-all border uppercase tracking-wider",
+              selectedPricing === p
+                ? "bg-cyan-500 text-black border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.4)]"
+                : "bg-zinc-900/30 text-zinc-600 border-zinc-800 hover:text-white hover:border-zinc-600"
             )}
           >
-            {cat}
+            {p}
           </button>
         ))}
       </div>
 
       {/* Grid */}
       <div className="mt-16 w-full max-w-7xl z-10">
+        {/* Sort Controls */}
+        <div className="flex justify-end gap-2 mb-6">
+          {SORT_OPTIONS.map(({ value, label, icon: Icon }) => (
+            <button
+              key={value}
+              onClick={() => setSortBy(value)}
+              aria-pressed={sortBy === value}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all border",
+                sortBy === value
+                  ? "bg-white text-black border-white"
+                  : "bg-zinc-900/50 text-zinc-500 border-zinc-800 hover:text-white hover:border-zinc-600"
+              )}
+            >
+              <Icon className="h-3 w-3" /> {label}
+            </button>
+          ))}
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            
+
             {isHunting && (
                 <>
                     <SkeletonCard />
@@ -321,13 +225,15 @@ export default function ToolDashboard({ tools: initialTools }: { tools: Tool[] }
                 </>
             )}
 
-            {filteredTools.length > 0 ? (
-                filteredTools.map((tool) => (
-                    <ToolCard 
-                        key={tool.id} 
-                        tool={tool} 
+            {sortedTools.length > 0 ? (
+                sortedTools.map((tool, index) => (
+                    <ToolCard
+                        key={tool.id}
+                        tool={tool}
                         handleVote={handleVote}
                         hasVoted={votedTools.includes(tool.id)}
+                        className="animate-in fade-in slide-in-from-bottom-2 fill-mode-both"
+                        style={{ animationDelay: `${Math.min(index, 12) * 40}ms`, animationDuration: "400ms" }}
                     />
                 ))
             ) : !isHunting ? (
@@ -340,7 +246,7 @@ export default function ToolDashboard({ tools: initialTools }: { tools: Tool[] }
                     </div>
                     
                     <h2 className="text-3xl font-bold text-white mb-3">
-                        No "{searchQuery}" tools in our vault.
+                        No &quot;{searchQuery}&quot; tools in our vault.
                     </h2>
                     <p className="text-zinc-400 mb-8 max-w-md mx-auto text-lg">
                         But they exist on the web. Activate the AI Agent to hunt them down for you.
