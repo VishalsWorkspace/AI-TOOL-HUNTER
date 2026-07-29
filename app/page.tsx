@@ -1,7 +1,6 @@
 import { supabase } from '@/lib/supabaseClient';
-import ToolDashboard from "@/components/ToolDashboard"; 
-import { Badge } from "@/components/ui/badge";
-import { Sparkles, Terminal } from "lucide-react";
+import ToolDashboard from "@/components/ToolDashboard";
+import { Sparkles } from "lucide-react";
 
 // 🚨 CRITICAL CACHE OVERRIDE 🚨
 // This forces Next.js to fetch fresh data from Supabase on every single page load.
@@ -28,14 +27,6 @@ export default async function Home() {
           <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-500/5 blur-[120px] animate-pulse" />
           <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-blue-500/5 blur-[120px]" />
           <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 mix-blend-overlay"></div>
-      </div>
-
-      {/* 2. "BUILT BY VISHAL" BADGE (Fixed Corner) */}
-      <div className="fixed top-6 right-6 z-50 animate-in fade-in slide-in-from-top-4 duration-1000">
-        <Badge variant="outline" className="py-2 px-4 bg-black/50 backdrop-blur-md border-white/10 text-zinc-400 font-mono text-xs hover:text-white hover:border-emerald-500 transition-colors cursor-default">
-            <Terminal className="w-3 h-3 mr-2 inline-block text-emerald-500" />
-            Engineered by VISHAL
-        </Badge>
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 pt-24 pb-20 flex flex-col items-center">

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { CSPostHogProvider } from "./providers"; 
+import { CSPostHogProvider } from "./providers";
+import Navbar from "@/components/Navbar";
 
 const jetbrains = JetBrains_Mono({ 
   subsets: ["latin"],
@@ -42,6 +43,7 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <CSPostHogProvider>
         <body className={`${jetbrains.className} antialiased bg-black min-h-screen`}>
+          <Navbar />
           {children}
         </body>
       </CSPostHogProvider>
