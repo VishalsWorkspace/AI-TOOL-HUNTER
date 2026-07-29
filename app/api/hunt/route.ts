@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import Groq from 'groq-sdk';
 import { tavily } from '@tavily/core';
 import { createClient } from '@supabase/supabase-js';
+import { slugify, randomSlugSuffix } from '@/lib/utils';
 
 // Initialize with your keys
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -133,6 +134,9 @@ export async function POST(request: Request) {
             if (!existing) {
                 // BUG 2 FIX: fetch OG image before insert, same as process_tools.py
                 tool.image_url = await getOgImage(tool.link);
+                // tools.slug is NOT NULL + unique — this insert path never checked
+                // for an existing slug, so append a random suffix for cheap uniqueness.
+                tool.slug = `${slugify(tool.title)}-${randomSlugSuffix()}`;
 
                 const { data } = await supabase.from('tools').insert(tool).select();
                 if (data) processedTools.push(data[0]);

@@ -2,12 +2,19 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ExternalLink, BookOpen, Check, Bot, Video, Flame, Eye } from "lucide-react";
-import { cn } from "@/lib/utils";
-import type { Tool } from "@/lib/types";
+import Image from "next/image";
+import { ExternalLink, BookOpen, Check, Bot, Video, Eye, Star } from "lucide-react";
+import { cn, isNewThisWeek } from "@/lib/utils";
+
+// Tiny neutral-gray shimmer, shared across all cards as the blur placeholder
+// while the real (arbitrary, external-domain) image loads.
+const SHIMMER_BLUR_DATA_URL =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+import type { ReviewStats, Tool } from "@/lib/types";
 import { getPrimaryCategory } from "@/lib/constants";
 import { BookmarkButton } from "@/components/BookmarkButton";
 import { QuickViewModal } from "@/components/QuickViewModal";
+import { useCompare } from "@/components/CompareProvider";
 
 // --- STAGE 1: Resolve + proxy the stored OG image through wsrv.nl (bypasses CORS/hotlinking) ---
 const formatImageUrl = (imgUrl: string | undefined, toolLink: string): string => {
@@ -34,14 +41,12 @@ const getClearbitLogo = (toolLink: string): string => {
 
 export const ToolCard = ({
   tool,
-  handleVote,
-  hasVoted,
+  reviewStats,
   className,
   style,
 }: {
   tool: Tool;
-  handleVote: (id: number, e: React.MouseEvent) => void;
-  hasVoted: boolean;
+  reviewStats?: ReviewStats;
   className?: string;
   style?: React.CSSProperties;
 }) => {
@@ -51,6 +56,8 @@ export const ToolCard = ({
   // Stage 3 → bot/video icon (last resort)
   const [imgStage, setImgStage] = useState<1 | 2 | 3>(1);
   const [quickViewOpen, setQuickViewOpen] = useState(false);
+  const { isComparing, toggleCompare, maxReached } = useCompare();
+  const comparing = isComparing(tool.id);
 
   const stage1Src = useMemo(() => formatImageUrl(tool.image_url, tool.link), [tool.image_url, tool.link]);
   const stage2Src = useMemo(() => getClearbitLogo(tool.link), [tool.link]);
@@ -70,6 +77,7 @@ export const ToolCard = ({
   const displaySrc = (imgStage === 1 && !stage1Src) ? stage2Src : activeSrc;
   const isClearbitLogo = (imgStage === 2) || (imgStage === 1 && !stage1Src);
   const category = getPrimaryCategory(tool.tags);
+  const isNew = isNewThisWeek(tool.created_at);
 
   return (
     <div
@@ -83,11 +91,15 @@ export const ToolCard = ({
       {/* IMAGE BANNER */}
       <div className="h-36 w-full bg-zinc-900/50 relative overflow-hidden border-b border-white/5">
           {displaySrc && imgStage !== 3 ? (
-              <img
+              <Image
                 src={displaySrc}
                 alt={tool.title}
+                fill
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
+                placeholder="blur"
+                blurDataURL={SHIMMER_BLUR_DATA_URL}
                 className={cn(
-                  "w-full h-full transition-all duration-500",
+                  "transition-all duration-500",
                   isClearbitLogo
                     ? "object-contain p-6 opacity-70 group-hover:opacity-100 group-hover:scale-105"
                     : "object-cover opacity-60 group-hover:opacity-100 group-hover:scale-105"
@@ -102,11 +114,18 @@ export const ToolCard = ({
               </div>
           )}
 
-          {category && (
-              <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md text-[10px] font-bold text-emerald-400 border border-emerald-500/30 uppercase tracking-wider shadow-xl">
-                  {category}
-              </div>
-          )}
+          <div className="absolute top-3 left-3 flex flex-col items-start gap-2">
+              {category && (
+                  <div className="bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md text-[10px] font-bold text-emerald-400 border border-emerald-500/30 uppercase tracking-wider shadow-xl">
+                      {category}
+                  </div>
+              )}
+              {isNew && (
+                  <div className="bg-purple-500/90 backdrop-blur-md px-2.5 py-1 rounded-md text-[10px] font-bold text-white uppercase tracking-wider shadow-xl">
+                      New
+                  </div>
+              )}
+          </div>
 
           <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
               <BookmarkButton toolId={tool.id} size="sm" />
@@ -123,6 +142,22 @@ export const ToolCard = ({
           >
               <Eye className="h-3.5 w-3.5" /> Quick View
           </button>
+
+          <button
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleCompare(tool.id); }}
+              disabled={!comparing && maxReached}
+              className={cn(
+                  "absolute bottom-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-0 group-hover:disabled:opacity-40",
+                  comparing
+                      ? "bg-emerald-500 text-black border-emerald-500 opacity-100"
+                      : "bg-black/60 text-zinc-300 border-white/20 hover:border-white/40"
+              )}
+          >
+              <span className={cn("h-3 w-3 rounded-sm border flex items-center justify-center shrink-0", comparing ? "border-black" : "border-zinc-400")}>
+                  {comparing && <Check className="h-2.5 w-2.5" />}
+              </span>
+              Compare
+          </button>
       </div>
 
       {quickViewOpen && (
@@ -131,31 +166,20 @@ export const ToolCard = ({
 
       {/* CONTENT */}
       <div className="p-6 flex flex-col flex-1">
-          <div className="flex justify-between items-start mb-3">
+          <div className="flex justify-between items-start mb-3 gap-2">
               <h3 className="text-xl font-bold text-white leading-tight group-hover:text-emerald-400 transition-colors">
-                {tool.slug ? (
-                  <Link href={`/tool/${tool.slug}`} className="hover:underline decoration-emerald-500 decoration-2 underline-offset-4">
-                      {tool.title}
-                  </Link>
-                ) : (
-                  <a href={tool.link} target="_blank" rel="noopener noreferrer">
-                      {tool.title}
-                  </a>
-                )}
+                <Link href={`/tool/${tool.slug}`} className="hover:underline decoration-emerald-500 decoration-2 underline-offset-4">
+                    {tool.title}
+                </Link>
               </h3>
 
-              <button
-                  onClick={(e) => handleVote(tool.id, e)}
-                  className={cn(
-                      "flex items-center gap-1.5 text-xs font-bold px-2 py-1 rounded-lg border transition-all ml-2",
-                      hasVoted
-                          ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/50"
-                          : "bg-zinc-800 text-zinc-500 border-zinc-700 hover:text-white hover:border-zinc-500"
-                  )}
-              >
-                  <Flame className={cn("h-3 w-3", hasVoted && "fill-emerald-400")} />
-                  {tool.votes || 0}
-              </button>
+              {reviewStats && reviewStats.review_count > 0 && (
+                  <div className="flex items-center gap-1 text-xs font-bold text-zinc-300 shrink-0 mt-1">
+                      <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+                      {reviewStats.avg_rating.toFixed(1)}
+                      <span className="text-zinc-600 font-normal">({reviewStats.review_count})</span>
+                  </div>
+              )}
           </div>
 
           <p className="text-zinc-400 text-sm leading-relaxed mb-6 line-clamp-2">

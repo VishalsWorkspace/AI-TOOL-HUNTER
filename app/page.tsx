@@ -1,8 +1,18 @@
 import { supabase } from '@/lib/supabaseClient';
+import { createClient as createServerSupabase } from '@/lib/supabase-server';
 import ToolDashboard from "@/components/ToolDashboard";
 import TrendingRow from "@/components/TrendingRow";
+import FeaturedStacks from "@/components/FeaturedStacks";
+import RecommendedRow from "@/components/RecommendedRow";
+import { AnimatedCounter } from "@/components/AnimatedCounter";
 import { Sparkles } from "lucide-react";
-import type { Tool } from "@/lib/types";
+import { getPrimaryCategory } from "@/lib/constants";
+import type { Tool, UserStack } from "@/lib/types";
+
+interface SavedWithTags {
+  tool_id: number;
+  tools: { tags: string[] } | null;
+}
 
 // 🚨 CRITICAL CACHE OVERRIDE 🚨
 // This forces Next.js to fetch fresh data from Supabase on every single page load.
@@ -21,9 +31,8 @@ export default async function Home() {
     console.error("Error fetching tools:", error);
   }
 
-  // Trending row: tools flagged `featured` in Supabase. Falls back to top-by-votes
-  // so the row isn't empty before anything is flagged (or before the `featured`
-  // column migration has been run).
+  // Trending row: tools flagged `featured` in Supabase. Falls back to top by
+  // utility_score so the row isn't empty before anything is flagged.
   let trendingTools: Tool[] = [];
   const { data: featured, error: featuredError } = await supabase
     .from('tools')
@@ -36,7 +45,7 @@ export default async function Home() {
     trendingTools = featured;
   } else {
     trendingTools = [...(tools || [])]
-      .sort((a, b) => (b.votes || 0) - (a.votes || 0))
+      .sort((a, b) => (b.utility_score || 0) - (a.utility_score || 0))
       .slice(0, 5);
   }
 
@@ -53,6 +62,69 @@ export default async function Home() {
   const saveCounts: Record<number, number> = {};
   for (const row of saveCountRows || []) {
     saveCounts[row.tool_id] = row.save_count;
+  }
+
+  // Review stats (avg rating + count) per tool, for the rating badge on cards
+  // and the "Top Rated" sort. Empty object pre-migration.
+  const { data: reviewStatRows } = await supabase
+    .from('tool_review_stats')
+    .select('tool_id, avg_rating, review_count');
+
+  const reviewStats: Record<number, { avg_rating: number; review_count: number }> = {};
+  for (const row of reviewStatRows || []) {
+    reviewStats[row.tool_id] = { avg_rating: row.avg_rating, review_count: row.review_count };
+  }
+
+  // Featured Stacks: public stacks with the most tools. No view for this —
+  // pool is small enough to sort client-side after a bounded fetch.
+  const { data: recentStacks } = await supabase
+    .from('user_stacks')
+    .select('*')
+    .eq('is_public', true)
+    .order('created_at', { ascending: false })
+    .limit(20)
+    .returns<UserStack[]>();
+
+  const featuredStacks = [...(recentStacks || [])]
+    .sort((a, b) => b.tool_ids.length - a.tool_ids.length)
+    .slice(0, 3);
+
+  // Recommended For You: only for logged-in users with 3+ saved tools, ranked
+  // by category overlap with what they've already saved. No placeholder if
+  // logged out or under the threshold — the row just doesn't render.
+  let recommendedTools: Tool[] = [];
+  const serverSupabase = await createServerSupabase();
+  const {
+    data: { user },
+  } = await serverSupabase.auth.getUser();
+
+  if (user) {
+    const { data: savedWithTags } = await serverSupabase
+      .from('saved_tools')
+      .select('tool_id, tools(tags)')
+      .eq('user_id', user.id)
+      .returns<SavedWithTags[]>();
+
+    if (savedWithTags && savedWithTags.length >= 3) {
+      const savedIds = new Set(savedWithTags.map((r) => r.tool_id));
+      const savedCategories = new Set<string>();
+      for (const row of savedWithTags) {
+        const cat = getPrimaryCategory(row.tools?.tags);
+        if (cat) savedCategories.add(cat);
+      }
+
+      if (savedCategories.size > 0) {
+        recommendedTools = (tools || [])
+          .filter((t) => !savedIds.has(t.id))
+          .filter((t) =>
+            t.tags?.some((tag: string) =>
+              [...savedCategories].some((cat) => tag.toLowerCase().includes(cat.toLowerCase()))
+            )
+          )
+          .sort((a, b) => (b.utility_score || 0) - (a.utility_score || 0))
+          .slice(0, 6);
+      }
+    }
   }
 
   return (
@@ -83,15 +155,21 @@ export default async function Home() {
               </p>
 
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900/60 border border-white/10 text-zinc-400 text-xs font-mono">
-                  Discover {toolCount ? `${toolCount}+` : "500+"} AI Tools
+                  Discover <AnimatedCounter target={toolCount || 500} suffix="+" /> AI Tools
               </div>
           </div>
 
           {/* TRENDING THIS WEEK */}
-          <TrendingRow tools={trendingTools} />
+          <TrendingRow tools={trendingTools} reviewStats={reviewStats} />
+
+          {/* FEATURED STACKS */}
+          <FeaturedStacks stacks={featuredStacks} />
+
+          {/* RECOMMENDED FOR YOU */}
+          <RecommendedRow tools={recommendedTools} reviewStats={reviewStats} />
 
           {/* 4. THE DASHBOARD (Your Grid & Search) */}
-          <ToolDashboard tools={tools || []} saveCounts={saveCounts} />
+          <ToolDashboard tools={tools || []} saveCounts={saveCounts} reviewStats={reviewStats} />
 
       </div>
     </main>

@@ -2,15 +2,17 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Bookmark, Terminal } from "lucide-react";
+import { Bookmark, Plus, Terminal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/lib/useUser";
 import AuthButton from "@/components/AuthButton";
+import { SubmitToolModal } from "@/components/SubmitToolModal";
 
 export default function Navbar() {
   const { user } = useUser();
   const [scrolled, setScrolled] = useState(false);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -46,6 +48,14 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-3">
+          {user && (
+            <button
+              onClick={() => setShowSubmitModal(true)}
+              className="hidden sm:flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" /> Submit a Tool
+            </button>
+          )}
           <Badge
             variant="outline"
             className="hidden md:inline-flex py-2 px-4 bg-black/50 backdrop-blur-md border-white/10 text-zinc-400 font-mono text-xs hover:text-white hover:border-emerald-500 transition-colors cursor-default"
@@ -56,6 +66,8 @@ export default function Navbar() {
           <AuthButton />
         </div>
       </div>
+
+      {showSubmitModal && <SubmitToolModal onClose={() => setShowSubmitModal(false)} />}
     </header>
   );
 }

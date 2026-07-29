@@ -1,27 +1,15 @@
-"use client";
-
-import { useState } from "react";
 import { TrendingUp } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
 import { ToolCard } from "@/components/ToolCard";
-import type { Tool } from "@/lib/types";
+import type { ReviewStats, Tool } from "@/lib/types";
 
-export default function TrendingRow({ tools }: { tools: Tool[] }) {
-  const [items, setItems] = useState<Tool[]>(tools);
-  const [votedTools, setVotedTools] = useState<number[]>([]);
-
-  if (!items || items.length === 0) return null;
-
-  const handleVote = async (toolId: number, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (votedTools.includes(toolId)) return;
-
-    setItems((prev) => prev.map((t) => (t.id === toolId ? { ...t, votes: (t.votes || 0) + 1 } : t)));
-    setVotedTools((prev) => [...prev, toolId]);
-
-    await supabase.rpc("increment_votes", { row_id: toolId });
-  };
+export default function TrendingRow({
+  tools,
+  reviewStats = {},
+}: {
+  tools: Tool[];
+  reviewStats?: Record<number, ReviewStats>;
+}) {
+  if (!tools || tools.length === 0) return null;
 
   return (
     <div className="w-full max-w-7xl mt-4 mb-8">
@@ -36,9 +24,9 @@ export default function TrendingRow({ tools }: { tools: Tool[] }) {
           "[&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent"
         }
       >
-        {items.map((tool) => (
+        {tools.map((tool) => (
           <div key={tool.id} className="w-[300px] shrink-0 snap-start">
-            <ToolCard tool={tool} handleVote={handleVote} hasVoted={votedTools.includes(tool.id)} />
+            <ToolCard tool={tool} reviewStats={reviewStats[tool.id]} />
           </div>
         ))}
       </div>

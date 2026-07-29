@@ -5,7 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import { useUser } from "@/lib/useUser";
 import { Button } from "@/components/ui/button";
-import { Bookmark, ChevronDown, LogOut } from "lucide-react";
+import { Bookmark, ChevronDown, Layers, LogOut } from "lucide-react";
 
 const GoogleIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 48 48" className={className}>
@@ -111,9 +111,16 @@ export default function AuthButton() {
           <Link
             href="/my-tools"
             onClick={() => setMenuOpen(false)}
-            className="w-full flex items-center gap-2 px-4 py-3 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-white transition-colors border-b border-white/10"
+            className="w-full flex items-center gap-2 px-4 py-3 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-white transition-colors"
           >
             <Bookmark className="h-4 w-4" /> My Saved Tools
+          </Link>
+          <Link
+            href="/my-tools#stacks"
+            onClick={() => setMenuOpen(false)}
+            className="w-full flex items-center gap-2 px-4 py-3 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-white transition-colors border-b border-white/10"
+          >
+            <Layers className="h-4 w-4" /> My Stacks
           </Link>
           <button
             onClick={handleLogout}

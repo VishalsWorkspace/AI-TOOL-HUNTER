@@ -14,7 +14,9 @@ load_dotenv('.env.local')
 
 # --- CONFIGURATION ---
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
+# .env.local only defines NEXT_PUBLIC_SUPABASE_URL (no bare SUPABASE_URL), so
+# SUPABASE_URL was always None here and create_client() would fail on start.
+SUPABASE_URL = os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 TAVILY_API_KEY = os.environ.get("TAVILY_API_KEY")
 # ---------------------

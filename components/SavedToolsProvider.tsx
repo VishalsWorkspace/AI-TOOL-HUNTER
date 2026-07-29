@@ -12,6 +12,7 @@ interface ToggleResult {
 interface SavedToolsContextValue {
   isSaved: (toolId: number) => boolean;
   toggleSave: (toolId: number) => Promise<ToggleResult>;
+  saveMany: (toolIds: number[]) => Promise<ToggleResult>;
   savedIds: Set<number>;
   loading: boolean;
 }
@@ -82,10 +83,41 @@ export function SavedToolsProvider({ children }: { children: ReactNode }) {
     [user, savedIds]
   );
 
+  const saveMany = useCallback(
+    async (toolIds: number[]): Promise<ToggleResult> => {
+      if (!user) return { ok: false, requiresLogin: true };
+
+      const newIds = toolIds.filter((id) => !savedIds.has(id));
+      if (newIds.length === 0) return { ok: true, requiresLogin: false };
+
+      setSavedIds((prev) => new Set([...prev, ...newIds]));
+
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("saved_tools")
+        .upsert(
+          newIds.map((tool_id) => ({ user_id: user.id, tool_id })),
+          { onConflict: "user_id,tool_id", ignoreDuplicates: true }
+        );
+
+      if (error) {
+        setSavedIds((prev) => {
+          const next = new Set(prev);
+          for (const id of newIds) next.delete(id);
+          return next;
+        });
+        return { ok: false, requiresLogin: false };
+      }
+
+      return { ok: true, requiresLogin: false };
+    },
+    [user, savedIds]
+  );
+
   const isSaved = useCallback((toolId: number) => savedIds.has(toolId), [savedIds]);
 
   return (
-    <SavedToolsContext.Provider value={{ isSaved, toggleSave, savedIds, loading }}>
+    <SavedToolsContext.Provider value={{ isSaved, toggleSave, saveMany, savedIds, loading }}>
       {children}
     </SavedToolsContext.Provider>
   );

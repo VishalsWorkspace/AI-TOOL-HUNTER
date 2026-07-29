@@ -4,6 +4,8 @@ import "./globals.css";
 import { CSPostHogProvider } from "./providers";
 import Navbar from "@/components/Navbar";
 import { SavedToolsProvider } from "@/components/SavedToolsProvider";
+import { CompareProvider } from "@/components/CompareProvider";
+import CompareBar from "@/components/CompareBar";
 
 const jetbrains = JetBrains_Mono({ 
   subsets: ["latin"],
@@ -11,6 +13,7 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://ai-tool-hunter.vercel.app"),
   title: {
     default: "AI Tool Hunter | Find Top 1% of AI Tools",
     template: "%s | AI Tool Hunter"
@@ -45,8 +48,11 @@ export default function RootLayout({
       <CSPostHogProvider>
         <body className={`${jetbrains.className} antialiased bg-black min-h-screen`}>
           <SavedToolsProvider>
-            <Navbar />
-            {children}
+            <CompareProvider>
+              <Navbar />
+              {children}
+              <CompareBar />
+            </CompareProvider>
           </SavedToolsProvider>
         </body>
       </CSPostHogProvider>
