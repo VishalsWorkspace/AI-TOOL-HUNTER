@@ -1,0 +1,3 @@
+supabase
+huggingface_hub
+pandas
