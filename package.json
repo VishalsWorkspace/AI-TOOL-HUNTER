@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "author": "Vishal Singh",
+  "description": "AI tool discovery engine with live search agent, MCP server, and open-source dataset",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
