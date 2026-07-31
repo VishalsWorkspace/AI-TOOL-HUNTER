@@ -13,7 +13,7 @@ SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL") or os.environ.get("SUP
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 HF_TOKEN = os.environ.get("HF_TOKEN")
 
-HF_REPO_ID = "vishalclen/AI-Tools-Corpus-2026"
+HF_REPO_ID = "Vishalsworkspace/AI-Tools-Corpus-2026"
 # NOTE: tools has no "category" column — the UI derives a display category
 # client-side from `tags` via getPrimaryCategory() (see components/ToolCard.tsx).
 FIELDS = [
