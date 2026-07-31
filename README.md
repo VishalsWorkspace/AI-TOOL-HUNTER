@@ -12,7 +12,7 @@
 [![HuggingFace](https://img.shields.io/badge/dataset-HuggingFace-FFD21E?logo=huggingface&logoColor=black)](https://huggingface.co/datasets/Vishalsworkspace/AI-Tools-Corpus-2026)
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 
-<!-- Add screenshot here -->
+![AI Tool Hunter - Find Top 1% of AI Tools](./public/screenshot.png)
 
 ## What it is
 
