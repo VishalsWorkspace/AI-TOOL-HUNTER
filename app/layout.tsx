@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   },
   description: "Don't just search. Hunt. Our AI Agent scans thousands of tools daily to find the ones that actually work.",
   keywords: ["AI Tools", "Deep Search", "Tech Hunter", "Generative AI", "Software Reviews"],
-  authors: [{ name: "Your Name" }], // <--- PUT YOUR NAME HERE
+  authors: [{ name: "Vishal Singh" }],
   openGraph: {
     title: "AI Tool Hunter",
     description: "The intelligent search engine for AI software.",
