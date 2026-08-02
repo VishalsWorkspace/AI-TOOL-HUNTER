@@ -45,6 +45,13 @@ export default function Navbar() {
               <Bookmark className="h-3.5 w-3.5" /> My Tools
             </Link>
           )}
+
+          <Link
+            href="/pricing"
+            className="hidden sm:flex items-center text-sm text-zinc-400 hover:text-white transition-colors"
+          >
+            Pricing
+          </Link>
         </div>
 
         <div className="flex items-center gap-3">
