@@ -12,8 +12,10 @@ const jetbrains = JetBrains_Mono({
   variable: '--font-jetbrains'
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://ai-tool-hunter-eight.vercel.app";
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://ai-tool-hunter.vercel.app"),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "AI Tool Hunter | Find Top 1% of AI Tools",
     template: "%s | AI Tool Hunter"
@@ -24,17 +26,27 @@ export const metadata: Metadata = {
   openGraph: {
     title: "AI Tool Hunter",
     description: "The intelligent search engine for AI software.",
-    url: "https://ai-tool-hunter.vercel.app", // Update this after Vercel deploy
+    url: SITE_URL,
     siteName: "AI Tool Hunter",
     images: [
       {
-        url: "/og-image.png", // We will add this image next
+        url: `${SITE_URL}/og-image.png`,
         width: 1200,
         height: 630,
       },
     ],
     locale: "en_US",
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AI Tool Hunter — Find Top 1% of AI Tools",
+    description:
+      "AI-powered search engine for discovering the best AI software. Live search agent + curated daily-refreshed database.",
+    images: [`${SITE_URL}/og-image.png`],
+  },
+  verification: {
+    google: 'cOIdnK78fvKIY7rwwunFwzz71EG4yuVGK3Em_m3TPio',
   },
 };
 

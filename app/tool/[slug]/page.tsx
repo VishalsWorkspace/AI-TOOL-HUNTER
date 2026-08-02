@@ -41,20 +41,24 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const tool = await getTool(slug);
   if (!tool) return { title: 'Tool not found' };
 
+  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://ai-tool-hunter-eight.vercel.app";
+  const fallbackImage = `${SITE_URL}/og-image.png`;
+
   return {
     title: tool.title,
     description: tool.description,
     openGraph: {
       title: tool.title,
       description: tool.description,
-      images: tool.image_url ? [{ url: tool.image_url }] : undefined,
+      url: `${SITE_URL}/tool/${slug}`,
+      images: tool.image_url ? [{ url: tool.image_url }] : [{ url: fallbackImage }],
       type: 'website',
     },
     twitter: {
       card: 'summary_large_image',
       title: tool.title,
       description: tool.description,
-      images: tool.image_url ? [tool.image_url] : undefined,
+      images: tool.image_url ? [tool.image_url] : [fallbackImage],
     },
   };
 }

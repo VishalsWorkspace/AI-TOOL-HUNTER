@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { supabase } from '@/lib/supabaseClient';
 
-const BASE_URL = 'https://ai-tool-hunter.vercel.app';
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://ai-tool-hunter-eight.vercel.app';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const { data: tools } = await supabase.from('tools').select('slug, created_at');
@@ -14,7 +14,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     { url: BASE_URL, changeFrequency: 'daily', priority: 1 },
     { url: `${BASE_URL}/compare`, priority: 0.5 },
-    { url: `${BASE_URL}/my-tools`, priority: 0.3 },
     ...toolUrls,
   ];
 }
