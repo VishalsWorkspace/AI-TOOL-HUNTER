@@ -6,6 +6,7 @@ import Navbar from "@/components/Navbar";
 import { SavedToolsProvider } from "@/components/SavedToolsProvider";
 import { CompareProvider } from "@/components/CompareProvider";
 import CompareBar from "@/components/CompareBar";
+import { Analytics } from "@vercel/analytics/next";
 
 const jetbrains = JetBrains_Mono({ 
   subsets: ["latin"],
@@ -66,6 +67,7 @@ export default function RootLayout({
               <CompareBar />
             </CompareProvider>
           </SavedToolsProvider>
+          <Analytics />
         </body>
       </CSPostHogProvider>
     </html>
