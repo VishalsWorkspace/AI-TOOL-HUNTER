@@ -3,7 +3,7 @@ import json
 import os
 
 # --- CONFIGURATION ---
-API_KEY = "fdead0c43d74448d86ae88f1ea440a74"  # <--- PASTE YOUR KEY HERE
+API_KEY = os.getenv("NEWS_API_KEY") # <--- PASTE YOUR KEY HERE
 QUERY = "artificial intelligence tools" # What we look for
 LANGUAGE = "en"
 # ---------------------
